@@ -33,7 +33,7 @@ instance HasRecipe effect target ((Recipe effect target deps) ': tail) deps wher
 instance HasRecipe effect target tail deps => HasRecipe effect target (head ': tail) deps where
   recipe list = recipe $ aft list
 
-class SubSelect effect (book :: [*]) (deps :: [*]) (state :: [*]) (state1 :: [*]) | effect book deps state -> state1, effect book deps -> deps where
+class SubSelect effect (book :: [*]) (deps :: [*]) (state :: [*]) (state1 :: [*]) | effect book deps state -> state1, effect book -> deps where
   subselect :: Many book -> Many state -> Proxy deps -> effect (Many state1, Many deps)
 
 instance forall effect book state1 state2 state3 dep depTail.

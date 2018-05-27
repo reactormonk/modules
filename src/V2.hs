@@ -25,16 +25,11 @@ postfixLifted (Many ls) fy = if i /= 0 then pure (Many ls, unsafeCoerce (S.index
 
 newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: Many deps -> effect target }
 
-class DefaultRecipe (effect :: * -> *) target (deps :: [*]) | effect target -> deps where
-  def :: Recipe effect target deps
-
 class HasRecipe (effect :: * -> *) target (book :: [*]) (deps :: [*]) | target effect book -> deps where
   recipe :: Many book -> Recipe effect target deps
 
 instance HasRecipe effect target ((Recipe effect target deps) ': tail) deps where
   recipe list = front list
-instance DefaultRecipe effect target deps => HasRecipe effect target '[] deps where
-  recipe _ = def
 instance HasRecipe effect target tail deps => HasRecipe effect target (head ': tail) deps where
   recipe list = recipe $ aft list
 
@@ -72,6 +67,19 @@ instance forall effect target book deps state1 state2.
       (s2r, deps) :: (Many state2, Many deps) <- s2
       (res s2r deps) :: effect (Many (SnocUnique state2 target), target)
 
+finish :: (Monad effect) => Many book -> Proxy target -> effect target
+finish book p = do
+  (_, t) <- cook book nil p
+  pure t
+
+-- test
+
+class DefaultRecipe (effect :: * -> *) target (deps :: [*]) | effect target -> deps where
+  def :: Recipe effect target deps
+
+instance DefaultRecipe effect target deps => HasRecipe effect target '[] deps where
+  recipe _ = def
+
 data M0 = M0 M1 M3
 data M1 = M1 M2 M3
 newtype M2 = M2 ()
@@ -92,10 +100,3 @@ instance DefaultRecipe Identity M3 '[M4] where
 
 instance DefaultRecipe Identity M4 '[] where
   def = Recipe $ \deps -> pure $ M4 ()
-
-finish :: (Monad effect) => Many book -> Proxy target -> effect target
-finish book p = do
-  (_, t) <- cook book nil p
-  pure t
-
-book = nil

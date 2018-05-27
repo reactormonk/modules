@@ -23,6 +23,9 @@ dependencies:
 - base >= 4.7 && < 5
 - universum
 - HList
+- data-diverse
+- containers
+- unordered-containers
 
 default-extensions:
   - NoImplicitPrelude
@@ -60,6 +63,7 @@ default-extensions:
   - TypeFamilies
   - TypeFamilyDependencies
   - TypeOperators
+  - UndecidableInstances
 
 library:
   source-dirs: src

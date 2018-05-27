@@ -4,12 +4,13 @@ module Lib where
 import Universum
 import Data.HList
 
+pureRecipe :: Applicative effect => target -> Recipe effect target '[]
+pureRecipe target = Recipe $ \HNil -> pure target
+
 newtype Recipe effect target (deps :: [*]) = Recipe { runRecipe :: HList deps -> effect target }
 
 class DefaultRecipe target where
   def :: Recipe target deps effect
-
-type family Foo
 
 class CanCook target (pot :: [*]) (deps :: [*]) | target pot -> deps where
   cook :: HList pot -> (PotEffect pot) target

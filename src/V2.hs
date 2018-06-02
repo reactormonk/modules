@@ -1,5 +1,6 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PolyKinds #-}
 module V2 where
 
 import Universum
@@ -13,6 +14,36 @@ import GHC.TypeLits as Lits
 
 pureRecipe :: Applicative effect => target -> Recipe effect target $ empty
 pureRecipe target = Recipe $ \_ -> pure target
+
+-- TODO
+--  - first calculate the required storage for state via type family
+--  - fill it with Nothing
+--  - use as required
+type family StateRequired (book :: [*]) (target :: *) effect (deps :: [*])
+
+class CollectTypes (book :: [*]) (target :: *) effect (deps :: [*]) (depCache :: [*]) | book target effect deps -> depCache where
+  emptyState :: Proxy book -> Proxy target -> Proxy effect -> Proxy deps -> Proxy types
+
+instance (HasRecipe effect target book '[]) => CollectTypes book target effect '[] '[target] where
+  emptyState _ _ _ _ = Proxy
+
+instance (HasRecipe effect target book (depH ': depT)) => CollectTypes book target effect (depH ': depT) '[target] where
+  emptyState _ _ _ _ = Proxy
+
+class CollectSubTypes (book :: [*]) (targets :: [*]) effect (depCache :: [*]) | book targets effect -> depCache where
+  collectSubTypes :: Proxy book -> Proxy targets -> Proxy effect -> Proxy depCache
+
+instance CollectSubTypes book '[] effect '[] where
+  collectSubTypes _ _ _ = Proxy
+
+instance (CollectTypes book effect hTarget deps hCache, CollectSubTypes book tTargets effect tCache, (AddLists hCache tCache) ~ depCache) => CollectSubTypes book (hTarget ': tTargets) effect depCache where
+  collectSubTypes :: Proxy book -> Proxy (hTarget ': tTargets) -> Proxy effect -> Proxy (AddLists hCache tCache)
+  collectSubTypes _ _ _ = Proxy :: Proxy (AddLists hCache tCache)
+
+type family AddLists (l1 :: [k]) (l2 :: [k]) :: [k] where
+  AddLists '[] l2 = l2
+  AddLists l1 '[] = l1
+  AddLists (h1 ': t1) l2 = AddLists t1 (h1 ': l2)
 
 -- copypastad from postfix', so it should work as expected
 postfixLifted
@@ -33,7 +64,7 @@ instance HasRecipe effect target ((Recipe effect target deps) ': tail) deps wher
 instance HasRecipe effect target tail deps => HasRecipe effect target (head ': tail) deps where
   recipe list = recipe $ aft list
 
-class SubSelect effect (book :: [*]) (deps :: [*]) (state :: [*]) (state1 :: [*]) | effect book deps state -> state1, effect book -> deps where
+class SubSelect effect (book :: [*]) (deps :: [*]) (state :: [*]) (state1 :: [*]) | effect book deps state -> state1 where
   subselect :: Many book -> Many state -> Proxy deps -> effect (Many state1, Many deps)
 
 instance forall effect book state1 state2 state3 dep depTail.
@@ -45,11 +76,11 @@ instance forall effect book state1 state2 state3 dep depTail.
       (s3, (subDeps :: Many depTail)) <- subselect book s2 (Proxy :: Proxy depTail)
       pure $ (s3, (target :: dep) ./ subDeps)
 
-instance (Monad effect, state1 ~ state) => SubSelect effect book '[] state state1 where
+instance (Monad effect) => SubSelect effect book '[] state1 state1 where
   subselect _ state _ = pure (state, nil)
 
-class CanCook (book :: [*]) (state :: [*]) (state1 :: [*]) effect target | book state effect target -> state1 where
-  cook :: Many book -> Many state -> Proxy target -> effect (Many (SnocUnique state1 target), target)
+class CanCook (book :: [*]) (state1 :: [*]) (state2 :: [*]) effect target | book state1 effect target -> state2 where
+  cook :: Many book -> Many state1 -> Proxy target -> effect (Many (SnocUnique state2 target), target)
 
 instance forall effect target book deps state1 state2.
   (HasRecipe effect target book deps, SubSelect effect book deps state1 state2, Monad effect, MaybeUniqueMember target state2) =>
@@ -67,12 +98,14 @@ instance forall effect target book deps state1 state2.
       (s2r, deps) :: (Many state2, Many deps) <- s2
       (res s2r deps) :: effect (Many (SnocUnique state2 target), target)
 
-finish :: (Monad effect) => Many book -> Proxy target -> effect target
-finish book p = do
-  (_, t) <- cook book nil p
-  pure t
+-- finish :: (Monad effect) => Many book -> Proxy target -> effect target
+-- finish book p = do
+--   (_, t) <- cook book nil p
+--   pure t
 
 -- test
+
+type family DefaultRecipeFamily (book :: [*]) (effect :: * -> *) (target :: *) :: deps
 
 class DefaultRecipe (effect :: * -> *) target (deps :: [*]) | effect target -> deps where
   def :: Recipe effect target deps
@@ -89,14 +122,26 @@ newtype M4 = M4 ()
 instance DefaultRecipe Identity M0 '[M1, M3] where
   def = Recipe $ \deps -> pure $ M0 (grab deps) (grab deps)
 
+type instance DefaultRecipeFamily '[] Identity M0 = '[M1, M3]
+type instance DefaultRecipeFamily ((Recipe Identity M0 deps)': t) Identity M0 = deps
+type instance DefaultRecipeFamily ((Recipe e a d) ': t) Identity M0 = DefaultRecipeFamily t Identity M0
+
 instance DefaultRecipe Identity M1 '[M2, M3] where
   def = Recipe $ \deps -> pure $ M1 (grab deps) (grab deps)
+
+type instance DefaultRecipeFamily '[] Identity M1 = '[M1, M3]
 
 instance DefaultRecipe Identity M2 '[] where
   def = Recipe $ \deps -> pure $ M2 ()
 
+type instance DefaultRecipeFamily '[] Identity M2 = '[]
+
 instance DefaultRecipe Identity M3 '[M4] where
   def = Recipe $ \deps -> pure $ M3 (grab deps)
 
+type instance DefaultRecipeFamily '[] Identity M3 = '[M4]
+
 instance DefaultRecipe Identity M4 '[] where
   def = Recipe $ \deps -> pure $ M4 ()
+
+type instance DefaultRecipeFamily '[] Identity M4 = '[]

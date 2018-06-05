@@ -34,7 +34,13 @@ type family RecipeDeps (effect :: * -> *) (target :: *) (book :: [*]) :: [*] whe
   RecipeDeps effect target '[] = DefaultRecipeDeps effect target
 
 type family RecipeDepsRec (effect :: * -> *) (target :: *) (book :: [*]) (deps :: [*]) :: [*] where
-  RecipeDepsRec effect target book (hDeps ': tDeps) = AddLists '[hDeps] (AddLists (RecipeDeps effect hDeps book) (RecipeDepsRec effect target book tDeps))
+  RecipeDepsRec effect target book (hDeps ': tDeps) = AddLists
+    (RecipeDepsRec effect target book (RecipeDeps effect hDeps book))
+    (AddLists
+      '[hDeps]
+      (AddLists
+        (RecipeDeps effect hDeps book)
+        (RecipeDepsRec effect target book tDeps)))
   RecipeDepsRec effect target book '[] = '[target]
 
 newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: Many deps -> effect target }
@@ -114,13 +120,13 @@ instance forall effect target book state.
       (s2r, deps) :: (Many state, Many (RecipeDeps effect target book)) <- s2
       (res s2r deps) :: effect (Many state, target)
 
-finish :: forall target (effect:: * -> *) (book :: [*]).
-  (ToS (ListLen (EmptyStore effect target book))
+finish :: forall target (effect:: * -> *) (book :: [*]) (store :: [*]).
+  ( store ~ (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book))))
+  , ToS (ListLen (EmptyStore effect target book))
   , HasRecipe effect target book
   , Monad effect
-  , (SubSelect effect book (RecipeDeps effect target book) (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book)))))
-  , (KnownNat (IndexOf (Maybe target) (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book))))))
-  , (Unique (Maybe target) (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book)))))
+  , (SubSelect effect book (RecipeDeps effect target book) store)
+  , (UniqueMember (Maybe target) store)
   ) =>
   Many book -> effect target
 finish book = do

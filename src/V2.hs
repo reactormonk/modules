@@ -14,9 +14,6 @@ import Unsafe.Coerce
 import Numbers
 -- import GHC.TypeLits as Lits
 
-forceResult :: Proxy a -> Proxy a -> Proxy a
-forceResult _ _ = Proxy
-
 pureRecipe :: Applicative effect => target -> Recipe effect target $ empty
 pureRecipe target = Recipe $ \_ -> pure target
 
@@ -31,12 +28,12 @@ type family AddLists (l1 :: [k]) (l2 :: [k]) :: [k] where
   AddLists l1 (h2 ': t2) = AddLists (h2 ': l1) t2
 
 type family RecipeDeps (effect :: * -> *) (target :: *) (book :: [*]) :: [*] where
-  RecipeDeps effect target (hBook ': tBook) = RecipeDeps effect target tBook
   RecipeDeps effect target ((Recipe effect target deps) ': tBook) = RecipeDeps effect target tBook
+  RecipeDeps effect target (hBook ': tBook) = RecipeDeps effect target tBook
   RecipeDeps effect target '[] = DefaultRecipeDeps effect target
 
 type family RecipeDepsRec (effect :: * -> *) (target :: *) (book :: [*]) (deps :: [*]) :: [*] where
-  RecipeDepsRec effect target book (hDeps ': tDeps) = AddLists (RecipeDeps effect hDeps book) (RecipeDepsRec effect target book tDeps)
+  RecipeDepsRec effect target book (hDeps ': tDeps) = AddLists '[hDeps] (AddLists (RecipeDeps effect hDeps book) (RecipeDepsRec effect target book tDeps))
   RecipeDepsRec effect target book '[] = '[target]
 
 newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: Many deps -> effect target }

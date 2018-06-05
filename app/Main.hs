@@ -1,8 +1,7 @@
 module Main where
 
 import Universum
-import Lib
+import V2
 
 main = do
-  _ <- c1
   pure ()

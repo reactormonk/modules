@@ -26,6 +26,7 @@ dependencies:
 - data-diverse
 - containers
 - unordered-containers
+- hedgehog
 
 default-extensions:
   - NoImplicitPrelude
@@ -63,7 +64,6 @@ default-extensions:
   - TypeFamilies
   - TypeFamilyDependencies
   - TypeOperators
-  - UndecidableInstances
 
 library:
   source-dirs: src

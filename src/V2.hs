@@ -15,7 +15,7 @@ import Unsafe.Coerce
 import Numbers
 -- import GHC.TypeLits as Lits
 
-pureRecipe :: Applicative effect => target -> Recipe effect target $ empty
+pureRecipe :: Applicative effect => target -> Recipe effect target '[]
 pureRecipe target = Recipe $ \_ -> pure target
 
 --  - first calculate the required storage for state via type family

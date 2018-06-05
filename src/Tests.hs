@@ -16,6 +16,32 @@ import Numbers
 forceResult :: Proxy a -> Proxy a -> Proxy a
 forceResult _ _ = Proxy
 
+data M0 = M0 M1 M3
+data M1 = M1 M2 M3
+newtype M2 = M2 ()
+newtype M3 = M3 M4
+newtype M4 = M4 ()
+
+instance DefaultRecipe Identity M0 where
+  type DefaultRecipeDeps Identity M0 = '[M1, M3]
+  def = Recipe $ \deps -> pure $ M0 (grab deps) (grab deps)
+
+instance DefaultRecipe Identity M1 where
+  type DefaultRecipeDeps Identity M1 = '[M2, M3]
+  def = Recipe $ \deps -> pure $ M1 (grab deps) (grab deps)
+
+instance DefaultRecipe Identity M2 where
+  type DefaultRecipeDeps Identity M2 = '[]
+  def = Recipe $ \deps -> pure $ M2 ()
+
+instance DefaultRecipe Identity M3 where
+  type DefaultRecipeDeps Identity M3 = '[M4]
+  def = Recipe $ \deps -> pure $ M3 (grab deps)
+
+instance DefaultRecipe Identity M4 where
+  type DefaultRecipeDeps Identity M4 = '[]
+  def = Recipe $ \deps -> pure $ M4 ()
+
 l1 = forceResult (Proxy :: Proxy (AddLists '[M1, M2] '[M3, M4])) (Proxy :: Proxy '[M4, M3, M1, M2])
 
 f34 = forceResult (Proxy :: Proxy (RecipeDepsRec Identity M3 '[] '[M4])) (Proxy :: Proxy '[M3, M4])
@@ -36,3 +62,9 @@ c2 = finish nil
 
 c1 :: Identity M1
 c1 = finish nil
+
+r1 :: Recipe Identity M3 '[]
+r1 = Recipe $ \deps -> pure $ M3 (M4 ())
+
+rc1 :: Identity M1
+rc1 = finish (r1 ./ nil)

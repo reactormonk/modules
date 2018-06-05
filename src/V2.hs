@@ -2,6 +2,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
+
 module V2 where
 
 import Universum hiding (Nat)
@@ -28,7 +29,7 @@ type family AddLists (l1 :: [k]) (l2 :: [k]) :: [k] where
   AddLists l1 (h2 ': t2) = AddLists (h2 ': l1) t2
 
 type family RecipeDeps (effect :: * -> *) (target :: *) (book :: [*]) :: [*] where
-  RecipeDeps effect target ((Recipe effect target deps) ': tBook) = RecipeDeps effect target tBook
+  RecipeDeps effect target ((Recipe effect target deps) ': tBook) = deps
   RecipeDeps effect target (hBook ': tBook) = RecipeDeps effect target tBook
   RecipeDeps effect target '[] = DefaultRecipeDeps effect target
 
@@ -41,13 +42,15 @@ newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: M
 class HasRecipe (effect :: * -> *) target (book :: [*]) where
   recipe :: Many book -> Recipe effect target (RecipeDeps effect target book)
 
-instance (deps ~ RecipeDeps effect target ((Recipe effect target deps) ': tail)) =>
+instance {-# OVERLAPPING #-} (deps ~ RecipeDeps effect target ((Recipe effect target deps) ': tail)) =>
   HasRecipe effect target ((Recipe effect target deps) ': tail) where
     recipe :: Many ((Recipe effect target deps) ': tail) -> Recipe effect target (RecipeDeps effect target ((Recipe effect target deps) ': tail))
     recipe list = front list
 
-instance HasRecipe effect target tail => HasRecipe effect target (head ': tail) where
-  recipe list = recipe $ aft list
+instance ((RecipeDeps effect target tail) ~ (RecipeDeps effect target (head ': tail)), HasRecipe effect target tail) =>
+  HasRecipe effect target (head ': tail) where
+    recipe :: Many (head ': tail) -> Recipe effect target (RecipeDeps effect target tail)
+    recipe list = recipe $ aft list
 
 type family LiftMaybe (l :: [k]) :: [k] where
   LiftMaybe (head ': tail) = Maybe head ': (LiftMaybe tail)
@@ -135,29 +138,3 @@ class DefaultRecipe (effect :: * -> *) target where
 
 instance DefaultRecipe effect target => HasRecipe effect target '[] where
   recipe _ = def
-
-data M0 = M0 M1 M3
-data M1 = M1 M2 M3
-newtype M2 = M2 ()
-newtype M3 = M3 M4
-newtype M4 = M4 ()
-
-instance DefaultRecipe Identity M0 where
-  type DefaultRecipeDeps Identity M0 = '[M1, M3]
-  def = Recipe $ \deps -> pure $ M0 (grab deps) (grab deps)
-
-instance DefaultRecipe Identity M1 where
-  type DefaultRecipeDeps Identity M1 = '[M2, M3]
-  def = Recipe $ \deps -> pure $ M1 (grab deps) (grab deps)
-
-instance DefaultRecipe Identity M2 where
-  type DefaultRecipeDeps Identity M2 = '[]
-  def = Recipe $ \deps -> pure $ M2 ()
-
-instance DefaultRecipe Identity M3 where
-  type DefaultRecipeDeps Identity M3 = '[M4]
-  def = Recipe $ \deps -> pure $ M3 (grab deps)
-
-instance DefaultRecipe Identity M4 where
-  type DefaultRecipeDeps Identity M4 = '[]
-  def = Recipe $ \deps -> pure $ M4 ()

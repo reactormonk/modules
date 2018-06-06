@@ -127,7 +127,7 @@ type family Contains (target :: *) (store :: [*]) :: Bool where
 
 type family EverythingIsAppliedTypeError (bool :: Bool) (s :: Type) (b :: [Type]) :: Constraint where
   EverythingIsAppliedTypeError True s b = ()
-  EverythingIsAppliedTypeError False s b = TypeError ('Text "The type " ':<>: ShowType s ':<>: 'Text " is not overriding anything in " ':<>: ShowType b)
+  EverythingIsAppliedTypeError False s b = TypeError ('Text "There is a recipe for " ':<>: ShowType s ':<>: 'Text " but it's not being used anywhere in the current pot: " ':<>: ShowType b)
 
 type family EverythingIsApplied (effect :: * -> *) target (book :: [*]) (store :: [*]) :: Constraint where
   EverythingIsApplied effect target ((Recipe effect head _) ': tBook) store = (EverythingIsAppliedTypeError (Contains head store) head store, EverythingIsApplied effect target tBook store)

@@ -13,7 +13,7 @@ import qualified Data.Sequence as S
 import Data.Diverse.Many.Internal (Many(..))
 import Unsafe.Coerce
 import Numbers
--- import GHC.TypeLits as Lits
+import GHC.TypeLits as Lits
 
 pureRecipe :: Applicative effect => target -> Recipe effect target '[]
 pureRecipe target = Recipe $ \_ -> pure target
@@ -120,13 +120,28 @@ instance forall effect target book state.
       (s2r, deps) :: (Many state, Many (RecipeDeps effect target book)) <- s2
       (res s2r deps) :: effect (Many state, target)
 
-finish :: forall target (effect:: * -> *) (book :: [*]) (store :: [*]).
+type family Contains (target :: *) (store :: [*]) :: Bool where
+  Contains target (target ': t) = True
+  Contains target (h ': t) = Contains target t
+  Contains target '[] = False
+
+type family EverythingIsAppliedTypeError (bool :: Bool) (s :: Type) (b :: [Type]) :: Constraint where
+  EverythingIsAppliedTypeError True s b = ()
+  EverythingIsAppliedTypeError False s b = TypeError ('Text "The type " ':<>: ShowType s ':<>: 'Text " is not overriding anything in " ':<>: ShowType b)
+
+type family EverythingIsApplied (effect :: * -> *) target (book :: [*]) (store :: [*]) :: Constraint where
+  EverythingIsApplied effect target ((Recipe effect head _) ': tBook) store = (EverythingIsAppliedTypeError (Contains head store) head store, EverythingIsApplied effect target tBook store)
+  EverythingIsApplied effect target (head ': tBook) store = TypeError ('Text "The type " ':<>: ShowType head ':<>: 'Text " is not a Recipe")
+  EverythingIsApplied effect target '[] store = ()
+
+finish :: forall (effect :: * -> *) target (book :: [*]) (store :: [*]).
   ( store ~ (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book))))
   , ToS (ListLen (EmptyStore effect target book))
   , HasRecipe effect target book
   , Monad effect
   , (SubSelect effect book (RecipeDeps effect target book) store)
   , (UniqueMember (Maybe target) store)
+  , EverythingIsApplied effect target book (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book)))
   ) =>
   Many book -> effect target
 finish book = do
@@ -135,8 +150,6 @@ finish book = do
     r :: Recipe effect target (RecipeDeps effect target book) = recipe book
   (_, target) <- cook book store (Proxy @target)
   pure target
-
--- test
 
 class DefaultRecipe (effect :: * -> *) target where
   type DefaultRecipeDeps effect target :: [*]

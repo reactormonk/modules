@@ -50,3 +50,7 @@ c5 = finish nil
 
 rc5 :: Identity M5
 rc5 = finish (r5 ./ nil)
+
+-- Should fail with "not everything is applied"
+-- rc4fail :: Identity M4
+-- rc4fail = finish (r5 ./ nil)

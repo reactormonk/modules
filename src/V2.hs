@@ -5,10 +5,9 @@
 
 module V2 where
 
+import ManyOperations
 import Universum hiding (Nat)
 import Data.Diverse
-import Data.Diverse.Many
-import Data.Diverse.TypeLevel
 import qualified Data.Sequence as S
 import Data.Diverse.Many.Internal (Many(..))
 import Unsafe.Coerce
@@ -62,25 +61,25 @@ type family LiftMaybe (l :: [k]) :: [k] where
   LiftMaybe (head ': tail) = Maybe head ': (LiftMaybe tail)
   LiftMaybe '[] = '[]
 
-type EmptyStore effect target book = (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book))))
+type EmptyStore effect target book = (LiftMaybe (RecipeDepsRec effect target book (RecipeDeps effect target book)))
 
 emptyStore :: forall effect target book.
   (ToS (ListLen (EmptyStore effect target book))) =>
     Proxy effect -> Proxy target -> Proxy book -> Many (EmptyStore effect target book)
 emptyStore _ _ _ =
   unsafeCoerce $ S.fromFunction len (const Nothing)
-  where len :: Int = toLen (Proxy @(LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book)))))
+  where len :: Int = toLen (Proxy @(LiftMaybe (RecipeDepsRec effect target book (RecipeDeps effect target book))))
 
 findOrUpdate
     :: forall x xs f.
-       (UniqueMember (Maybe x) xs , Applicative f)
+       (KnownNat (IndexOf (Maybe x) xs) , Applicative f)
     => Many xs -> f x -> f (Many xs, x)
 findOrUpdate ls f =
-  case grab ls :: Maybe x of
+  case grabFirst ls :: Maybe x of
     Just x -> pure (ls, x)
     Nothing -> do
       x <- f
-      pure (replace' ls (Just x), x)
+      pure (replaceFirst' ls (Just x), x)
 
 class SubSelect effect (book :: [*]) (deps :: [*]) (state :: [*]) where
   subselect :: Many book -> Many state -> Proxy deps -> effect (Many state, Many deps)
@@ -104,7 +103,7 @@ instance forall effect target book state.
   (HasRecipe effect target book,
    SubSelect effect book (RecipeDeps effect target book) state,
    Monad effect,
-   UniqueMember (Maybe target) state) =>
+   KnownNat (IndexOf (Maybe target) state)) =>
   CanCook book state effect target where
     cook :: Many book -> Many state -> Proxy target -> effect (Many state, target)
     cook book s1 (Proxy :: Proxy target)= do
@@ -135,13 +134,13 @@ type family EverythingIsApplied (effect :: * -> *) target (book :: [*]) (store :
   EverythingIsApplied effect target '[] store = ()
 
 finish :: forall (effect :: * -> *) target (book :: [*]) (store :: [*]).
-  ( store ~ (LiftMaybe (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book))))
+  ( store ~ (LiftMaybe (RecipeDepsRec effect target book (RecipeDeps effect target book)))
   , ToS (ListLen (EmptyStore effect target book))
   , HasRecipe effect target book
   , Monad effect
   , (SubSelect effect book (RecipeDeps effect target book) store)
-  , (UniqueMember (Maybe target) store)
-  , EverythingIsApplied effect target book (Nub (RecipeDepsRec effect target book (RecipeDeps effect target book)))
+  , (KnownNat (IndexOf (Maybe target) store))
+  , EverythingIsApplied effect target book (RecipeDepsRec effect target book (RecipeDeps effect target book))
   ) =>
   Many book -> effect target
 finish book = do

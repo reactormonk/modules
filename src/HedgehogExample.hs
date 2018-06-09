@@ -34,26 +34,26 @@ instance MonadGen m => DefaultRecipe Identity (m Email) where
 instance MonadGen m => DefaultRecipe Identity (m Person) where
   type DefaultRecipeDeps Identity (m Person) = '[m Name, m Email]
   def = Recipe $ \deps -> pure $ do
-    name <- grab deps
-    email <- grab deps
+    name <- getTyped deps
+    email <- getTyped deps
     pure $ Person name email
 
 instance MonadGen m => DefaultRecipe Identity (m Company) where
   type DefaultRecipeDeps Identity (m Company) = '[m Person]
   def = Recipe $ \deps -> pure $ do
-    employees <- Gen.list (linear 3 10) (grab deps)
+    employees <- Gen.list (linear 3 10) (getTyped deps)
     pure $ Company employees
 
 regularGen :: MonadGen m => m Company
-regularGen = runIdentity $ finish nil
+regularGen = runIdentity $ finishDD nil
 
 largeCompanyGen' :: forall (m :: * -> *). MonadGen m => Recipe Identity (m Company) '[m Person]
 largeCompanyGen' = Recipe $ \deps -> pure $ do
-  employees <- Gen.list (linear 100 1000) (grab deps)
+  employees <- Gen.list (linear 100 1000) (getTyped deps)
   pure $ Company employees
 
 largeCompanyGen :: forall m. MonadGen m => (m Company)
-largeCompanyGen = runIdentity $ finish (largeCompanyGen' @m ./ nil) -- TODO why is this annotation required?
+largeCompanyGen = runIdentity $ finishDD (largeCompanyGen' @m ./ nil) -- TODO why is this annotation required?
 
 fixedEmailGen' :: forall m. MonadGen m => Text -> Recipe Identity (m Email) '[]
 fixedEmailGen' domain = pureRecipe $ do
@@ -61,4 +61,4 @@ fixedEmailGen' domain = pureRecipe $ do
   pure $ Email $ (user <> "@" <> domain)
 
 fixedEmailGen :: forall m. MonadGen m => (m Company)
-fixedEmailGen = runIdentity $ finish (fixedEmailGen' @m "company.com" ./ nil)
+fixedEmailGen = runIdentity $ finishDD (fixedEmailGen' @m "company.com" ./ nil)

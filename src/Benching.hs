@@ -10,4 +10,4 @@ import BenchData
 -- c = runIdentity $ finish nil
 
 c49 :: M49
-c49 = runIdentity $ finish nil
+c49 = runIdentity $ finish nil (Proxy :: Proxy Store)

@@ -1,8 +1,13 @@
 module BenchData where
 
 import V2
-import Universum
+-- import Universum
 import Data.Diverse.Many
+
+import Prelude
+import Data.Proxy
+import Data.Kind
+import Data.Functor.Identity
 
 newtype M0 = M0 ()
 instance DefaultRecipe Identity M0 where

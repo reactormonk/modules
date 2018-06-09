@@ -4,8 +4,13 @@
 module TestData where
 
 import V2
-import Universum hiding (Nat)
+-- import Universum hiding (Nat)
 import Data.Diverse
+
+import Prelude
+import Data.Proxy
+import Data.Kind
+import Data.Functor.Identity
 
 forceResult :: Proxy a -> Proxy a -> Proxy a
 forceResult _ _ = Proxy

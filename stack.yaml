@@ -15,7 +15,9 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-11.5
+resolver: nightly-2018-06-05
+
+# allow-newer: true
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -39,9 +41,8 @@ packages:
 - .
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
-extra-deps:
-  - HList-0.5.0.0
-  - data-diverse-3.1.0.0
+
+allow-newer: true
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
@@ -50,7 +51,10 @@ extra-deps:
 # extra-package-dbs: []
 
 # Control whether we use the GHC we find on the path
-# system-ghc: true
+extra-path:
+- ../ghc/inplace/bin
+system-ghc: true
+skip-ghc-check: true
 #
 # Require a specific version of stack, using version ranges
 # require-stack-version: -any # Default

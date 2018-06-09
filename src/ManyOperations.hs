@@ -8,7 +8,9 @@ import Data.Diverse
 import Data.Diverse.Many
 import Data.Diverse.Many.Internal (Many(..))
 import qualified Data.Sequence as S
-import Universum hiding (Any)
+-- import Universum hiding (Any)
+import Prelude
+import Data.Proxy
 import GHC.TypeLits as Lits
 import GHC.Exts (Any)
 import Unsafe.Coerce

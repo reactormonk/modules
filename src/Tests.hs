@@ -3,9 +3,14 @@
 
 module Tests where
 
+import Prelude
+import Data.Proxy
+import Data.Kind
+import Data.Functor.Identity
+
 import V2
 import TestData
-import Universum hiding (Nat)
+-- import Universum hiding (Nat)
 import Data.Diverse
 import Data.Diverse.Many
 import Data.Diverse.TypeLevel

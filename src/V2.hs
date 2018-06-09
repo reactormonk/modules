@@ -5,8 +5,12 @@
 
 module V2 where
 
+import Prelude
+import Data.Proxy
+import Data.Kind
+
 import ManyOperations
-import Universum hiding (Nat)
+-- import Universum hiding (Nat)
 import Data.Diverse
 import qualified Data.Sequence as S
 import Data.Diverse.Many.Internal (Many(..))

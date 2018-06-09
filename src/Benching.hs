@@ -2,12 +2,17 @@
 module Benching where
 
 import V2
-import Universum
+-- import Universum
 import Data.Diverse.Many
 import BenchData
 
--- c :: M10
--- c = runIdentity $ finish nil
+import Prelude
+import Data.Proxy
+import Data.Kind
+import Data.Functor.Identity
 
-c49 :: M49
-c49 = runIdentity $ finish nil
+c :: M20
+c = runIdentity $ finish nil
+
+-- c49 :: M49
+-- c49 = runIdentity $ finish nil

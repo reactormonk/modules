@@ -1,7 +1,9 @@
 {-# LANGUAGE PolyKinds #-}
 module Numbers where
 
-import Universum hiding (Nat)
+-- import Universum hiding (Nat)
+import Prelude
+import Data.Proxy
 
 type family ListLen (l1 :: [k]) :: Nat where
   ListLen (_ ': tail) = S (ListLen tail)

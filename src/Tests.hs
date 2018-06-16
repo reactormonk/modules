@@ -54,14 +54,16 @@ rc5 = finishDD (r5 ./ nil)
 -- rc4fail :: Identity M4
 -- rc4fail = finish (r5 ./ nil)
 
-pre4 :: Identity T4
-pre4 = finish nil (Proxy :: Proxy Store)
+-- pre4 :: Identity T4
+-- pre4 = finish nil (Proxy :: Proxy Store)
 
-pre3 :: Identity T3
-pre3 = finish nil (Proxy :: Proxy Store)
+-- pre3 :: Identity T3
+-- pre3 = finish nil (Proxy :: Proxy Store)
 
-pre1 :: Identity T1
-pre1 = finish nil (Proxy :: Proxy Store)
+-- pre1 :: Identity T1
+-- pre1 = finish nil (Proxy :: Proxy Store)
 
-pre0 :: Identity T0
-pre0 = finish nil (Proxy :: Proxy Store)
+-- pre0 :: Identity T0
+-- pre0 = finish nil (Proxy :: Proxy Store)
+
+-- prepareFinishTH @Identity @T4 @'[]

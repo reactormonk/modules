@@ -28,7 +28,6 @@ dependencies:
 - unordered-containers
 - hedgehog
 - generic-lens
-- template-haskell
 
 default-extensions:
   - NoImplicitPrelude

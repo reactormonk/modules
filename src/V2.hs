@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -13,7 +12,8 @@ import Data.Diverse.Many.Internal (Many(..))
 import Unsafe.Coerce
 import Numbers
 import GHC.TypeLits as Lits
-import Language.Haskell.TH
+
+newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: forall a. RecipeDepsHasTypes deps a => a -> effect target }
 
 pureRecipe :: Applicative effect => target -> Recipe effect target '[]
 pureRecipe target = Recipe $ \_ -> pure target
@@ -49,11 +49,15 @@ class HasType a s where
   getTyped :: s -> a
   setTyped :: a -> s -> s
 
+newtype PassedAsDeps deps = PassedAsDeps deps
+
+instance KnownNat (IndexOf (Maybe a) deps) => HasType a (PassedAsDeps (Many deps)) where
+  getTyped (PassedAsDeps m) = fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier cook. Please file a bug.") $ grabFirst m
+  setTyped elem (PassedAsDeps m)= PassedAsDeps $ replaceFirst' m $ Just elem
+
 instance KnownNat (IndexOf a deps) => HasType a (Many deps) where
   getTyped = grabFirst
   setTyped = flip replaceFirst'
-
-newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: forall a. RecipeDepsHasTypes deps a => a -> effect target }
 
 class HasRecipe (effect :: * -> *) target (book :: [*]) where
   recipe :: Many book -> Recipe effect target (RecipeDeps effect target book)
@@ -89,44 +93,43 @@ findOrUpdate pot elem =
       x <- elem
       pure (setTyped (Just x) pot, x)
 
-class SubSelect effect (book :: [*]) (deps :: [*]) (state :: *) where
-  subselect :: Many book -> state -> Proxy deps -> effect (state, Many deps)
+class SubSelect (effect :: * -> *) (book :: [*]) (deps :: [*]) state where
+  subselect :: Many book -> state -> Proxy deps -> effect state
 
 instance forall effect book state dep depTail.
   (Monad effect, CanCook book state effect dep, SubSelect effect book depTail state) =>
   SubSelect effect book (dep ': depTail) state where
-    subselect :: Many book -> state -> Proxy deps -> effect (state, Many (dep ': depTail))
+    subselect :: Many book -> state -> Proxy deps -> effect state
     subselect book s1 _ = do
-      (s2, target) <- cook book s1 (Proxy :: Proxy dep)
-      (s3, (subDeps :: Many depTail)) <- subselect book s2 (Proxy :: Proxy depTail)
-      pure $ (s3, (target :: dep) ./ subDeps)
+      s2 <- cook book s1 (Proxy :: Proxy dep)
+      s3 <- subselect book s2 (Proxy :: Proxy depTail)
+      pure $ s3
 
 instance (Monad effect) => SubSelect effect book '[] state where
-  subselect _ state _ = pure (state, nil)
+  subselect _ state _ = pure state
 
-class CanCook (book :: [*]) (state :: *) effect target where
-  cook :: Many book -> state -> Proxy target -> effect (state, target)
+class CanCook (book :: [*]) state (effect :: * -> *) target where
+  cook :: Many book -> state -> Proxy target -> effect state
 
 instance forall effect target book state.
   (HasRecipe effect target book,
    SubSelect effect book (RecipeDeps effect target book) state,
    Monad effect,
-   RecipeDepsHasTypes (RecipeDeps effect target book) (Many (RecipeDeps effect target book)),
+   RecipeDepsHasTypes (RecipeDeps effect target book) (PassedAsDeps state),
    HasType (Maybe target) state) =>
   CanCook book state effect target where
-    cook :: Many book -> state -> Proxy target -> effect (state, target)
+    cook :: Many book -> state -> Proxy target -> effect state
     cook book s1 (Proxy :: Proxy target)= do
       let
-        s2 :: effect (state, Many (RecipeDeps effect target book))
-        s2 = subselect book s1 Proxy
+        s2 :: effect state
+        s2 = subselect book s1 (Proxy @(RecipeDeps effect target book))
         r :: Recipe effect target (RecipeDeps effect target book)
         r = recipe book
-        build :: Many (RecipeDeps effect target book) -> effect target
-        build d = runRecipe r $ d
-        res :: state -> Many (RecipeDeps effect target book) -> effect (state, target)
-        res s2 deps = findOrUpdate (s2 :: state) (build deps)
-      (s2r, deps) :: (state, Many (RecipeDeps effect target book)) <- s2
-      (res s2r deps) :: effect (state, target)
+        res :: state -> effect (state, target)
+        res s2 = findOrUpdate (s2 :: state) (runRecipe r $ PassedAsDeps s2)
+      s2r :: state <- s2
+      (s3, t) <- (res s2r) :: effect (state, target)
+      pure $ s3
 
 type family Contains (target :: *) (store :: [*]) :: Bool where
   Contains target (target ': t) = 'True
@@ -148,13 +151,13 @@ finish :: forall (effect :: * -> *) target (book :: [*]) store.
   , SubSelect effect book (RecipeDeps effect target book) store
   , HasRecipe effect target book
   , HasType (Maybe target) store
-  , RecipeDepsHasTypes (RecipeDeps effect target book) (Many (RecipeDeps effect target book))
+  , RecipeDepsHasTypes (RecipeDeps effect target book) (PassedAsDeps store)
   ) =>
   Many book -> Proxy store -> effect target
 finish book _ = do
   let
-  (_, target) <- cook book (mempty :: store) (Proxy @target)
-  pure target
+  state <- cook book (mempty :: store) (Proxy @target)
+  pure $ fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier cook. Please file a bug.") $ getTyped @(Maybe target) state
 
 type RecipeDepsCalc effect target book = target ': (RecipeDepsRec effect target book (RecipeDeps effect target book))
 
@@ -166,14 +169,14 @@ finishDD :: forall (effect :: * -> *) target (book :: [*]) (store :: [*]).
   , (SubSelect effect book (RecipeDeps effect target book) (Many store))
   , (KnownNat (IndexOf (Maybe target) store))
   , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
-  , RecipeDepsHasTypes (RecipeDeps effect target book) (Many (RecipeDeps effect target book))
+  , RecipeDepsHasTypes (RecipeDeps effect target book) (PassedAsDeps (Many store))
   ) =>
   Many book -> effect target
 finishDD book = do
   let
     store = emptyStore (Proxy @effect) (Proxy @target) (Proxy @book)
-  (_, target) <- cook book store (Proxy @target)
-  pure target
+  state <- cook book store (Proxy @target)
+  pure $ getTyped @target (PassedAsDeps state)
 
 class DefaultRecipe (effect :: * -> *) target where
   type DefaultRecipeDeps effect target :: [*]

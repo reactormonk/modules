@@ -45,7 +45,7 @@ instance MonadGen m => DefaultRecipe Identity (m Company) where
     pure $ Company employees
 
 regularGen :: MonadGen m => m Company
-regularGen = runIdentity $ finishDD nil
+regularGen = finishPure nil
 
 largeCompanyGen' :: forall (m :: * -> *). MonadGen m => Recipe Identity (m Company) '[m Person]
 largeCompanyGen' = Recipe $ \deps -> pure $ do
@@ -53,7 +53,7 @@ largeCompanyGen' = Recipe $ \deps -> pure $ do
   pure $ Company employees
 
 largeCompanyGen :: forall m. MonadGen m => (m Company)
-largeCompanyGen = runIdentity $ finishDD (largeCompanyGen' @m ./ nil) -- TODO why is this annotation required?
+largeCompanyGen = finishPure (largeCompanyGen' @m ./ nil) -- TODO why is this annotation required?
 
 fixedEmailGen' :: forall m. MonadGen m => Text -> Recipe Identity (m Email) '[]
 fixedEmailGen' domain = pureRecipe $ do
@@ -61,4 +61,4 @@ fixedEmailGen' domain = pureRecipe $ do
   pure $ Email $ (user <> "@" <> domain)
 
 fixedEmailGen :: forall m. MonadGen m => (m Company)
-fixedEmailGen = runIdentity $ finishDD (fixedEmailGen' @m "company.com" ./ nil)
+fixedEmailGen = finishPure (fixedEmailGen' @m "company.com" ./ nil)

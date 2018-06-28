@@ -50,6 +50,21 @@ c5 = finishDD nil
 rc5 :: Identity T5
 rc5 = finishDD (r5 ./ nil)
 
+pure4 :: T4
+pure4 = finishPure nil
+
+pure3 :: T3
+pure3 = finishPure nil
+
+pure2 :: T2
+pure2 = finishPure nil
+
+-- pure1 :: T1
+-- pure1 = finishPure nil
+
+-- pure0 :: T0
+-- pure0 = finishPure nil
+
 -- Should fail with "not everything is applied"
 -- rc4fail :: Identity M4
 -- rc4fail = finish (r5 ./ nil)

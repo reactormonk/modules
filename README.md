@@ -1,4 +1,4 @@
-# Cook your typeclasses
+# Bake your typeclasses
 ## Hedgehog
 
 The most obvious use case for this library is hedgehog generators. In
@@ -150,7 +150,8 @@ The basic element of this library is the Recipe. It represent a function from
 its dependencies (represented as an hlist) to a target inside an effect.
 
 ```haskell
-newtype Recipe (effect :: * -> *) target (deps :: [*]) = Recipe { runRecipe :: Many deps -> effect target }
+newtype Recipe (effect :: Type -> Type) target (deps :: [Type]) =
+  Recipe { runRecipe :: forall depStore. HasTypes deps depStore => depStore -> effect target }
 ```
 
 You can cook a target by supplying a book of `Recipe`s to the `finish`

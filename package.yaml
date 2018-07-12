@@ -28,6 +28,7 @@ dependencies:
 - unordered-containers
 - hedgehog
 - generic-lens
+- generics-sop
 
 ghc-options:
   -Wall

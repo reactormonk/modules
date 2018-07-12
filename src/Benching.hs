@@ -7,7 +7,7 @@ import Data.Diverse.Many
 import BenchData
 
 c :: M10
-c = finishPure nil
+c = finishPure ()
 
 c49 :: M49
-c49 = finishPure nil -- (Proxy :: Proxy Store)
+c49 = finishPure () -- (Proxy :: Proxy Store)

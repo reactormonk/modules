@@ -6,12 +6,13 @@ module V2 where
 
 import ManyOperations
 import Universum hiding (Nat)
-import Data.Diverse
+import Data.Diverse hiding (Head)
 import qualified Data.Sequence as S
 import Data.Diverse.Many.Internal (Many(..))
 import Unsafe.Coerce
 import Numbers
 import GHC.TypeLits as Lits
+import Generics.SOP as SOP
 
 newtype Recipe (effect :: Type -> Type) target (deps :: [Type]) =
   Recipe { runRecipe :: forall depStore. HasTypes deps depStore => depStore -> effect target }
@@ -58,17 +59,17 @@ instance KnownNat (IndexOf a deps) => HasType a (Many deps) where
   setTyped = flip replaceFirst'
 
 class HasRecipe (effect :: Type -> Type) target (book :: [Type]) where
-  recipe :: Many book -> Recipe effect target (RecipeDeps effect target book)
+  recipe :: NP I book -> Recipe effect target (RecipeDeps effect target book)
 
 instance {-# OVERLAPPING #-} (deps ~ RecipeDeps effect target ((Recipe effect target deps) ': tail)) =>
   HasRecipe effect target ((Recipe effect target deps) ': tail) where
-    recipe :: Many ((Recipe effect target deps) ': tail) -> Recipe effect target (RecipeDeps effect target ((Recipe effect target deps) ': tail))
-    recipe l = front l
+    recipe :: NP I ((Recipe effect target deps) ': tail) -> Recipe effect target (RecipeDeps effect target ((Recipe effect target deps) ': tail))
+    recipe (l :* _) = unI $ l
 
 instance ((RecipeDeps effect target tail) ~ (RecipeDeps effect target (head ': tail)), HasRecipe effect target tail) =>
   HasRecipe effect target (head ': tail) where
-    recipe :: Many (head ': tail) -> Recipe effect target (RecipeDeps effect target tail)
-    recipe l = recipe $ aft l
+    recipe :: NP I (head ': tail) -> Recipe effect target (RecipeDeps effect target tail)
+    recipe (_ :* t) = recipe $ t
 
 type family LiftMaybe (l :: [k]) :: [k] where
   LiftMaybe (head ': tail) = Maybe head ': (LiftMaybe tail)
@@ -95,12 +96,12 @@ findOrUpdate pot element =
       pure (setTyped (Just x) pot, x)
 
 class SubSelect (effect :: Type -> Type) (book :: [Type]) (deps :: [Type]) state where
-  subselect :: Many book -> state -> Proxy deps -> effect state
+  subselect :: NP I book -> state -> Proxy deps -> effect state
 
 instance forall effect book state dep depTail.
   (Monad effect, CanBake book state effect dep, SubSelect effect book depTail state) =>
   SubSelect effect book (dep ': depTail) state where
-    subselect :: Many book -> state -> Proxy deps -> effect state
+    subselect :: NP I book -> state -> Proxy deps -> effect state
     subselect book s1 _ = do
       s2 <- bake book s1 (Proxy :: Proxy dep)
       s3 <- subselect book s2 (Proxy :: Proxy depTail)
@@ -110,7 +111,7 @@ instance (Monad effect) => SubSelect effect book '[] state where
   subselect _ s _ = pure s
 
 class CanBake (book :: [Type]) state (effect :: Type -> Type) target where
-  bake :: Many book -> state -> Proxy target -> effect state
+  bake :: NP I book -> state -> Proxy target -> effect state
 
 instance forall effect target book state.
   (HasRecipe effect target book,
@@ -119,7 +120,7 @@ instance forall effect target book state.
    HasTypes (RecipeDeps effect target book) (DepsComputed state),
    HasType (Maybe target) state) =>
   CanBake book state effect target where
-    bake :: Many book -> state -> Proxy target -> effect state
+    bake :: NP I book -> state -> Proxy target -> effect state
     bake book s1 (Proxy :: Proxy target)= do
       let
         s2 :: effect state
@@ -146,7 +147,7 @@ type family EverythingIsApplied (effect :: Type -> Type) target (book :: [Type])
   EverythingIsApplied effect target (head ': tBook) store = TypeError ('Text "The type " ':<>: 'ShowType head ':<>: 'Text " is not a Recipe")
   EverythingIsApplied effect target '[] store = ()
 
-finish :: forall (effect :: Type -> Type) target (book :: [Type]) store.
+finish :: forall (effect :: Type -> Type) target (book :: [Type]) store b.
   ( Monad effect
   , Monoid store
   , SubSelect effect book (RecipeDeps effect target book) store
@@ -154,16 +155,18 @@ finish :: forall (effect :: Type -> Type) target (book :: [Type]) store.
   , HasType (Maybe target) store
   , HasTypes (RecipeDeps effect target book) (DepsComputed store)
   , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
+  , SOP.Generic b
+  , Code b ~ '[book]
   ) =>
-  Many book -> Proxy store -> effect target
+  b -> Proxy store -> effect target
 finish book _ = do
   let
-  s <- bake book (mempty :: store) (Proxy @target)
+  s <- bake (extractBook book) (mempty :: store) (Proxy @target)
   pure $ fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier bake. Please file a bug.") $ getTyped @(Maybe target) s
 
 type RecipeDepsCalc effect target book = target ': (RecipeDepsRec effect target book (RecipeDeps effect target book))
 
-finishDD :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [Type]).
+finishDD :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [Type]) b.
   ( store ~ (LiftMaybe (RecipeDepsCalc effect target book))
   , ToS (ListLen (EmptyStore effect target book))
   , HasRecipe effect target book
@@ -172,12 +175,14 @@ finishDD :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [T
   , (KnownNat (IndexOf (Maybe target) store))
   , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
   , HasTypes (RecipeDeps effect target book) (DepsComputed (Many store))
+  , SOP.Generic b
+  , Code b ~ '[book]
   ) =>
-  Many book -> effect target
+  b -> effect target
 finishDD book = do
   let
     store = emptyStore (Proxy @effect) (Proxy @target) (Proxy @book)
-  s <- bake book store (Proxy @target)
+  s <- bake (extractBook book) store (Proxy @target)
   pure $ getTyped @target (DepsComputed s)
 
 class DefaultRecipe (effect :: Type -> Type) target where
@@ -187,7 +192,7 @@ class DefaultRecipe (effect :: Type -> Type) target where
 instance DefaultRecipe effect target => HasRecipe effect target '[] where
   recipe _ = def
 
-newtype PureDepHolder book = PureDepHolder (Many book)
+newtype PureDepHolder book = PureDepHolder (NP I book)
 
 instance forall target (book :: [Type]) (deps :: [Type]).
   ( deps ~ (RecipeDeps Identity target book)
@@ -217,10 +222,23 @@ instance forall target (book :: [Type]) (deps :: [Type]).
     runRecipe r $ DepsComputed deps
   setTyped _ x = x
 
-finishPure :: forall target (book :: [Type]).
+finishPure :: forall b target (book :: [Type]).
   ( HasRecipe Identity target book
   , SubSelect Identity book (RecipeDeps Identity target book) (PureDepHolder book)
   , HasTypes (RecipeDeps Identity target book) (DepsComputed (PureDepHolder book))
   , EverythingIsApplied Identity target book (RecipeDepsCalc Identity target book)
-  ) => Many book -> target
-finishPure book = getTyped @(target) (DepsComputed (PureDepHolder book))
+  , SOP.Generic b
+  , Code b ~ '[book]
+  ) => b -> target
+finishPure book = getTyped @(target) (DepsComputed (PureDepHolder (extractBook book)))
+
+extractBook :: forall a (l :: [Type]).
+  ( SOP.Generic a
+  , Code a ~ '[l]
+  ) => a -> (NP I (Head (Code a)))
+  -- unsafeCoerce worked in the SOP Record example, seems to work here.
+  -- TODO write some tests
+extractBook = unsafeCoerce . unZ . unSOP . from
+
+type family Head (xs :: [k]) :: k where
+  Head (x : xs) = x

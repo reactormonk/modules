@@ -4,6 +4,7 @@
 module Tests where
 
 import V2
+import DD
 import TestData
 import Universum hiding (Nat)
 import Generics.SOP (I(..))

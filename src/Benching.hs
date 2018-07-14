@@ -3,7 +3,6 @@ module Benching where
 
 import V2
 import Universum
-import Data.Diverse.Many
 import BenchData
 
 c :: M10

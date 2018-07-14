@@ -4,13 +4,8 @@
 
 module V2 where
 
-import ManyOperations
 import Universum hiding (Nat)
-import Data.Diverse hiding (Head)
-import qualified Data.Sequence as S
-import Data.Diverse.Many.Internal (Many(..))
 import Unsafe.Coerce
-import Numbers
 import GHC.TypeLits as Lits
 import Generics.SOP as SOP
 
@@ -50,14 +45,6 @@ class HasType a s where
 -- Dependendencies already computed
 newtype DepsComputed deps = DepsComputed deps
 
-instance KnownNat (IndexOf (Maybe a) deps) => HasType a (DepsComputed (Many deps)) where
-  getTyped (DepsComputed m) = fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier bake. Please file a bug.") $ grabFirst m
-  setTyped element (DepsComputed m)= DepsComputed $ replaceFirst' m $ Just element
-
-instance KnownNat (IndexOf a deps) => HasType a (Many deps) where
-  getTyped = grabFirst
-  setTyped = flip replaceFirst'
-
 class HasRecipe (effect :: Type -> Type) target (book :: [Type]) where
   recipe :: NP I book -> Recipe effect target (RecipeDeps effect target book)
 
@@ -70,22 +57,6 @@ instance ((RecipeDeps effect target tail) ~ (RecipeDeps effect target (head ': t
   HasRecipe effect target (head ': tail) where
     recipe :: NP I (head ': tail) -> Recipe effect target (RecipeDeps effect target tail)
     recipe (_ :* t) = recipe $ t
-
-type family LiftMaybe (l :: [k]) :: [k] where
-  LiftMaybe (head ': tail) = Maybe head ': (LiftMaybe tail)
-  LiftMaybe '[] = '[]
-
-type EmptyStore effect target book = (LiftMaybe (RecipeDepsCalc effect target book))
-
---  - first calculate the required storage for state via type family
---  - fill it with Nothing
---  - use as required
-emptyStore :: forall effect target book.
-  (ToS (ListLen (EmptyStore effect target book))) =>
-    Proxy effect -> Proxy target -> Proxy book -> Many (EmptyStore effect target book)
-emptyStore _ _ _ =
-  unsafeCoerce $ S.fromFunction len (const Nothing)
-  where len :: Int = toLen (Proxy @(LiftMaybe (RecipeDepsCalc effect target book)))
 
 findOrUpdate :: forall element store f. (HasType (Maybe element) store, Applicative f) => store -> f element -> f (store, element)
 findOrUpdate pot element =
@@ -120,6 +91,7 @@ instance forall effect target book state.
    HasTypes (RecipeDeps effect target book) (DepsComputed state),
    HasType (Maybe target) state) =>
   CanBake book state effect target where
+    {-# NOINLINE bake #-}
     bake :: NP I book -> state -> Proxy target -> effect state
     bake book s1 (Proxy :: Proxy target)= do
       let
@@ -147,7 +119,7 @@ type family EverythingIsApplied (effect :: Type -> Type) target (book :: [Type])
   EverythingIsApplied effect target (head ': tBook) store = TypeError ('Text "The type " ':<>: 'ShowType head ':<>: 'Text " is not a Recipe")
   EverythingIsApplied effect target '[] store = ()
 
-finish :: forall (effect :: Type -> Type) target (book :: [Type]) store b.
+finishStore :: forall (effect :: Type -> Type) target (book :: [Type]) store b.
   ( Monad effect
   , Monoid store
   , SubSelect effect book (RecipeDeps effect target book) store
@@ -159,31 +131,12 @@ finish :: forall (effect :: Type -> Type) target (book :: [Type]) store b.
   , Code b ~ '[book]
   ) =>
   b -> Proxy store -> effect target
-finish book _ = do
+finishStore book _ = do
   let
   s <- bake (extractBook book) (mempty :: store) (Proxy @target)
   pure $ fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier bake. Please file a bug.") $ getTyped @(Maybe target) s
 
 type RecipeDepsCalc effect target book = target ': (RecipeDepsRec effect target book (RecipeDeps effect target book))
-
-finishDD :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [Type]) b.
-  ( store ~ (LiftMaybe (RecipeDepsCalc effect target book))
-  , ToS (ListLen (EmptyStore effect target book))
-  , HasRecipe effect target book
-  , Monad effect
-  , (SubSelect effect book (RecipeDeps effect target book) (Many store))
-  , (KnownNat (IndexOf (Maybe target) store))
-  , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
-  , HasTypes (RecipeDeps effect target book) (DepsComputed (Many store))
-  , SOP.Generic b
-  , Code b ~ '[book]
-  ) =>
-  b -> effect target
-finishDD book = do
-  let
-    store = emptyStore (Proxy @effect) (Proxy @target) (Proxy @book)
-  s <- bake (extractBook book) store (Proxy @target)
-  pure $ getTyped @target (DepsComputed s)
 
 class DefaultRecipe (effect :: Type -> Type) target where
   type DefaultRecipeDeps effect target :: [Type]
@@ -242,3 +195,40 @@ extractBook = unsafeCoerce . unZ . unSOP . from
 
 type family Head (xs :: [k]) :: k where
   Head (x : xs) = x
+
+emptyStore :: forall (deps :: [*]). (SListI deps) => NP Maybe deps
+emptyStore = hpure Nothing
+
+finish :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [Type]) b.
+  ( store ~ (RecipeDepsCalc effect target book)
+  , (SListI (RecipeDepsRec effect target book (RecipeDeps effect target book)))
+  , HasRecipe effect target book
+  , Monad effect
+  , (SubSelect effect book (RecipeDeps effect target book) (NP Maybe store))
+  , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
+  , HasTypes (RecipeDeps effect target book) (DepsComputed (NP Maybe store))
+  , SOP.Generic b
+  , Code b ~ '[book]
+  ) =>
+  b -> effect target
+finish book = do
+  let
+    store = emptyStore @store
+  s <- bake (extractBook book) store (Proxy @target)
+  pure $ getTyped @target (DepsComputed s)
+
+instance (
+  HasType (Maybe a) (NP Maybe deps)
+  ) => HasType a (DepsComputed (NP Maybe deps)) where
+  getTyped (DepsComputed m) = fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier bake. Please file a bug.") $ getTyped m
+  setTyped element (DepsComputed m)= DepsComputed $ setTyped (Just element) m
+
+instance {-# OVERLAPPABLE #-} (
+  HasType (Maybe a) (NP Maybe tail)
+  ) => HasType (Maybe a) (NP Maybe (h ': tail)) where
+  getTyped np = getTyped $ tl np
+  setTyped a np = hd np :* (setTyped a $ tl np)
+
+instance {-# OVERLAPPING #-} HasType (Maybe a) (NP Maybe (a ': tail)) where
+  getTyped np = hd np
+  setTyped a np = a :* (tl np)

@@ -31,8 +31,8 @@ instance MonadGen m => DefaultRecipe Identity (m Email) where
     host <- text (linear 3 10) ascii
     pure $ Email $ (user <> "@" <> host)
 
-instance Applicative m => DefaultRecipe Identity (m Person) where
-  type DefaultRecipeDeps Identity (m Person) = '[m Name, m Email]
+instance (Applicative m, Applicative n) => DefaultRecipe m (n Person) where
+  type DefaultRecipeDeps m (n Person) = '[n Name, n Email]
   def = Recipe $ \deps -> pure $ do
     name <- getTyped deps
     email <- getTyped deps

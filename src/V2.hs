@@ -188,8 +188,6 @@ finishPure book = getTyped @(target) (DepsComputed (PureDepHolder (extractBook b
 extractBook :: forall a (l :: [Type]).
   ( IsProductType a l
   ) => a -> (NP I l)
-  -- unsafeCoerce worked in the SOP Record example, seems to work here.
-  -- TODO write some tests
 extractBook = unZ . unSOP . from
 
 emptyStore :: forall (deps :: [*]). (SListI deps) => NP Maybe deps

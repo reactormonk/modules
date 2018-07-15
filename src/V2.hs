@@ -91,7 +91,7 @@ instance forall effect target book state.
    HasTypes (RecipeDeps effect target book) (DepsComputed state),
    HasType (Maybe target) state) =>
   CanBake book state effect target where
-    {-# NOINLINE bake #-}
+    {-# NOINLINE bake #-} -- otherwise the simplifier goes out of whack
     bake :: NP I book -> state -> Proxy target -> effect state
     bake book s1 (Proxy :: Proxy target)= do
       let

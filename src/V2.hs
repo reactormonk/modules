@@ -186,8 +186,7 @@ finishPure :: forall b target (book :: [Type]).
 finishPure book = getTyped @(target) (DepsComputed (PureDepHolder (extractBook book)))
 
 extractBook :: forall a (l :: [Type]).
-  ( SOP.Generic a
-  , Code a ~ '[l]
+  ( IsProductType a l
   ) => a -> (NP I l)
   -- unsafeCoerce worked in the SOP Record example, seems to work here.
   -- TODO write some tests

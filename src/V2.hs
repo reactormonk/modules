@@ -188,13 +188,10 @@ finishPure book = getTyped @(target) (DepsComputed (PureDepHolder (extractBook b
 extractBook :: forall a (l :: [Type]).
   ( SOP.Generic a
   , Code a ~ '[l]
-  ) => a -> (NP I (Head (Code a)))
+  ) => a -> (NP I l)
   -- unsafeCoerce worked in the SOP Record example, seems to work here.
   -- TODO write some tests
 extractBook = unZ . unSOP . from
-
-type family Head (xs :: [k]) :: k where
-  Head (x : xs) = x
 
 emptyStore :: forall (deps :: [*]). (SListI deps) => NP Maybe deps
 emptyStore = hpure Nothing

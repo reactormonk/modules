@@ -191,7 +191,7 @@ extractBook :: forall a (l :: [Type]).
   ) => a -> (NP I (Head (Code a)))
   -- unsafeCoerce worked in the SOP Record example, seems to work here.
   -- TODO write some tests
-extractBook = unsafeCoerce . unZ . unSOP . from
+extractBook = unZ . unSOP . from
 
 type family Head (xs :: [k]) :: k where
   Head (x : xs) = x

@@ -19,26 +19,6 @@ newtype T3 = T3 T4
 newtype T4 = T4 ()
 newtype T5 = T5 T0
 
-data Store = Store
-  { m0 :: Maybe T0
-  , m1 :: Maybe T1
-  , m2 :: Maybe T2
-  , m3 :: Maybe T3
-  , m4 :: Maybe T4
-  , m5 :: Maybe T5
-  } deriving (Generic)
-
-instance P.HasType a Store => HasType a Store where
-  getTyped = P.getTyped
-  setTyped = P.setTyped
-
-instance Semigroup Store where
-  Store l0 l1 l2 l3 l4 l5 <> Store r0 r1 r2 r3 r4 r5 = Store (l0 <|> r0) (l1 <|> r1) (l2 <|> r2) (l3 <|> r3) (l4 <|> r4) (l5 <|> r5)
-
-instance Monoid Store where
-  mempty = Store Nothing Nothing Nothing Nothing Nothing Nothing
-  mappend = (<>)
-
 instance DefaultRecipe Identity T0 where
   type DefaultRecipeDeps Identity T0 = '[T1, T3]
   def = Recipe $ \deps -> pure $ T0 (getTyped deps) (getTyped deps)

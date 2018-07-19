@@ -23,7 +23,7 @@ finishDD :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [T
   , (SubSelect effect book (RecipeDeps effect target book) (Many store))
   , (KnownNat (IndexOf (Maybe target) store))
   , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
-  , HasTypes (RecipeDeps effect target book) (DepsComputed (Many store))
+  , HasTypes (DepsComputed (Many store)) (RecipeDeps effect target book)
   , SOP.Generic b
   , Code b ~ '[book]
   ) =>
@@ -32,7 +32,7 @@ finishDD book = do
   let
     store = emptyStore (Proxy @effect) (Proxy @target) (Proxy @book)
   s <- bake (extractBook book) store (Proxy @target)
-  pure $ getTyped @target (DepsComputed s)
+  pure $ getTyped @_ @target (DepsComputed s)
 
 type family LiftMaybe (l :: [k]) :: [k] where
   LiftMaybe (head ': tail) = Maybe head ': (LiftMaybe tail)
@@ -50,10 +50,10 @@ emptyStore _ _ _ =
   unsafeCoerce $ S.fromFunction len (const Nothing)
   where len :: Int = toLen (Proxy @(LiftMaybe (RecipeDepsCalc effect target book)))
 
-instance KnownNat (IndexOf (Maybe a) deps) => HasType a (DepsComputed (Many deps)) where
+instance KnownNat (IndexOf (Maybe a) deps) => HasType (DepsComputed (Many deps)) a where
   getTyped (DepsComputed m) = fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier bake. Please file a bug.") $ grabFirst m
   setTyped element (DepsComputed m)= DepsComputed $ replaceFirst' m $ Just element
 
-instance KnownNat (IndexOf a deps) => HasType a (Many deps) where
+instance KnownNat (IndexOf a deps) => HasType (Many deps) a where
   getTyped = grabFirst
   setTyped = flip replaceFirst'

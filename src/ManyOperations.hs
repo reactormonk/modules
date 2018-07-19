@@ -5,7 +5,6 @@
 module ManyOperations where
 
 import Data.Diverse
-import Data.Diverse.Many
 import Data.Diverse.Many.Internal (Many(..))
 import qualified Data.Sequence as S
 import Universum hiding (Any)

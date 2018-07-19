@@ -7,6 +7,7 @@ import Hedgehog.Range as Range
 import Universum
 import V2
 import Generics.SOP
+import Utilities
 
 newtype Name = Name Text
 newtype Email = Email Text

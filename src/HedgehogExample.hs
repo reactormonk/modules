@@ -1,4 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module HedgehogExample where
 
 import Hedgehog
@@ -6,38 +9,35 @@ import Hedgehog.Gen as Gen
 import Hedgehog.Range as Range
 import Universum
 import V2
-import Generics.SOP
+import Generics.SOP as SOP
 import Utilities
+import Generics.SOP.Constraint
 
-newtype Name = Name Text
-newtype Email = Email Text
+newtype Name = Name Text deriving (Eq, Show, Universum.Generic, SOP.Generic)
+newtype Email = Email Text deriving (Eq, Show, Universum.Generic, SOP.Generic)
 
 data Person = Person
   { _name :: Name
   , _email :: Email
-  }
+  } deriving (Eq, Show, Universum.Generic, SOP.Generic)
 
 data Company = Company
   { _employees :: [Person]
-  }
+  } deriving (Eq, Show, Universum.Generic, SOP.Generic)
 
 instance MonadGen m => DefaultRecipe Identity (m Name) where
-  type DefaultRecipeDeps Identity (m Name) = '[]
   def = pureRecipe $ Name <$> text (linear 3 20) unicode
 
 instance MonadGen m => DefaultRecipe Identity (m Email) where
-  type DefaultRecipeDeps Identity (m Email) = '[]
   def = pureRecipe $ do
     user <- text (linear 3 20) ascii
     host <- text (linear 3 10) ascii
     pure $ Email $ (user <> "@" <> host)
 
+-- TODO be able to derive the function via TH
 instance (Applicative m, Applicative n) => DefaultRecipe m (n Person) where
-  type DefaultRecipeDeps m (n Person) = '[n Name, n Email]
-  def = Recipe $ \deps -> pure $ do
-    name <- getTyped deps
-    email <- getTyped deps
-    pure $ Person name email
+  type DefaultRecipeDeps m (n Person) = Lift n (Head (Code Person))
+  def = genericTransientRecipe
 
 instance MonadGen m => DefaultRecipe Identity (m Company) where
   type DefaultRecipeDeps Identity (m Company) = '[m Person]

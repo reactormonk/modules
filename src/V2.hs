@@ -135,6 +135,7 @@ type RecipeDepsCalc effect target book = target ': (RecipeDepsRec effect target 
 
 class DefaultRecipe (effect :: Type -> Type) target where
   type DefaultRecipeDeps effect target :: [Type]
+  type DefaultRecipeDeps e t = '[]
   def :: Recipe effect target (DefaultRecipeDeps effect target)
 
 instance DefaultRecipe effect target => HasRecipe effect target '[] where

@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module HedgehogExample where
 
@@ -34,10 +35,7 @@ instance MonadGen m => DefaultRecipe Identity (m Email) where
     host <- text (linear 3 10) ascii
     pure $ Email $ (user <> "@" <> host)
 
--- TODO be able to derive the function via TH
-instance (Applicative m, Applicative n) => DefaultRecipe m (n Person) where
-  type DefaultRecipeDeps m (n Person) = Lift n (Head (Code Person))
-  def = genericTransientRecipe
+genericTransientRecipeInstance ''Person
 
 instance MonadGen m => DefaultRecipe Identity (m Company) where
   type DefaultRecipeDeps Identity (m Company) = '[m Person]

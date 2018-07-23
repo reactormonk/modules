@@ -28,6 +28,7 @@ dependencies:
 - hedgehog
 - generic-lens
 - generics-sop
+- template-haskell
 
 ghc-options:
   -Wall

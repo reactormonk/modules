@@ -1,10 +1,12 @@
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Utilities where
 
 import Universum
 import V2
 import Generics.SOP as SOP
 import Generics.SOP.Constraint
+import Language.Haskell.TH
 
 pureRecipe :: Applicative effect => target -> Recipe effect target '[]
 pureRecipe target = Recipe $ \_ -> pure target
@@ -52,3 +54,11 @@ type family UnApply (u :: k) where
 moveLift :: (l' ~ Lift m l, l ~ Unlift l') => NP I l' -> NP m l
 moveLift Nil = Nil
 moveLift (I u :* v) = u :* (moveLift v)
+
+genericTransientRecipeInstance :: Name -> DecsQ
+genericTransientRecipeInstance typ =
+  [d|
+  instance (Applicative m, Applicative n) => DefaultRecipe m (n $(conT typ)) where
+    type DefaultRecipeDeps m (n $(conT typ)) = Lift n (Head (Code $(conT typ)))
+    def = genericTransientRecipe
+  |]

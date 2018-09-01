@@ -110,8 +110,10 @@ type family EverythingIsAppliedTypeError (bool :: Bool) (s :: Type) (b :: [Type]
   EverythingIsAppliedTypeError 'False s b = TypeError ('Text "There is a recipe for " ':<>: 'ShowType s ':<>: 'Text " but it's not being used anywhere in the current pot: " ':<>: 'ShowType b)
 
 type family EverythingIsApplied (effect :: Type -> Type) target (book :: [Type]) (store :: [Type]) :: Constraint where
-  EverythingIsApplied effect target ((Recipe effect head _) ': tBook) store = (EverythingIsAppliedTypeError (Contains head store) head store, EverythingIsApplied effect target tBook store)
-  EverythingIsApplied effect target (head ': tBook) store = TypeError ('Text "The type " ':<>: 'ShowType head ':<>: 'Text " is not a Recipe")
+  EverythingIsApplied effect target ((Recipe effect head _) ': tBook) store =
+    (EverythingIsAppliedTypeError (Contains head store) head store, EverythingIsApplied effect target tBook store)
+  EverythingIsApplied effect target (head ': tBook) store =
+    TypeError ('Text "The type " ':<>: 'ShowType head ':<>: 'Text " is not a Recipe")
   EverythingIsApplied effect target '[] store = ()
 
 finishStore :: forall (effect :: Type -> Type) target (book :: [Type]) store b.
@@ -121,12 +123,12 @@ finishStore :: forall (effect :: Type -> Type) target (book :: [Type]) store b.
   , HasRecipe effect target book
   , HasType store (Maybe target)
   , HasTypes (DepsComputed store) (RecipeDeps effect target book)
-  , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
+--   , EverythingIsApplied effect target book (RecipeDepsCalc effect target book) -- TODO - can't use AddList
   , SOP.Generic b
   , Code b ~ '[book]
   ) =>
-  b -> Proxy store -> effect target
-finishStore book _ = do
+  Proxy store -> b -> effect target
+finishStore _ book = do
   let
   s <- bake (extractBook book) (mempty :: store) (Proxy @target)
   pure $ fromMaybe (error "No element of this type available. This should not happen, it should have been produced by an earlier bake. Please file a bug.") $ getTyped @store @(Maybe target) s
@@ -195,7 +197,7 @@ finish :: forall (effect :: Type -> Type) target (book :: [Type]) (store :: [Typ
   , HasRecipe effect target book
   , Monad effect
   , (SubSelect effect book (RecipeDeps effect target book) (NP Maybe store))
-  , EverythingIsApplied effect target book (RecipeDepsCalc effect target book)
+  , EverythingIsApplied effect target book store
   , HasTypes (DepsComputed (NP Maybe store)) (RecipeDeps effect target book)
   , SOP.Generic b
   , Code b ~ '[book]
@@ -206,6 +208,16 @@ finish book = do
     store = emptyStore @store
   s <- bake (extractBook book) store (Proxy @target)
   pure $ getTyped @_ @target (DepsComputed s)
+
+instance {-# OVERLAPPABLE #-} (
+  HasType (NP I tail) a
+  ) => HasType (NP I (h ': tail)) a where
+  getTyped np = getTyped $ tl np
+  setTyped a np = hd np :* (setTyped a $ tl np)
+
+instance {-# OVERLAPPING #-} HasType (NP I (a ': tail)) a where
+  getTyped np = unI $ hd np
+  setTyped a np = (I a) :* (tl np)
 
 instance (
   HasType (NP Maybe deps) (Maybe a)

@@ -12,19 +12,28 @@ import Universum
 import V2
 import Generics.SOP as SOP
 import Utilities
-import Generics.SOP.Constraint
+import Functions
 
-newtype Name = Name Text deriving (Eq, Show, Universum.Generic, SOP.Generic)
-newtype Email = Email Text deriving (Eq, Show, Universum.Generic, SOP.Generic)
+newtype Name = Name Text
+  deriving stock (Eq, Show, Universum.Generic)
+  deriving anyclass SOP.Generic
+
+newtype Email = Email Text
+  deriving stock (Eq, Show, Universum.Generic)
+  deriving anyclass SOP.Generic
 
 data Person = Person
   { _name :: Name
   , _email :: Email
-  } deriving (Eq, Show, Universum.Generic, SOP.Generic)
+  }
+  deriving stock (Eq, Show, Universum.Generic)
+  deriving anyclass SOP.Generic
 
 data Company = Company
   { _employees :: [Person]
-  } deriving (Eq, Show, Universum.Generic, SOP.Generic)
+  }
+  deriving stock (Eq, Show, Universum.Generic)
+  deriving anyclass SOP.Generic
 
 instance MonadGen m => DefaultRecipe Identity (m Name) where
   def = pureRecipe $ Name <$> text (linear 3 20) unicode
@@ -35,13 +44,28 @@ instance MonadGen m => DefaultRecipe Identity (m Email) where
     host <- text (linear 3 10) ascii
     pure $ Email $ (user <> "@" <> host)
 
-genericTransientRecipeInstance ''Person
+Utilities.genericTransientRecipeInstance ''Person
+
+genCompany :: MonadGen m => (m Person) -> (m Company)
+genCompany genP = do
+  employees <- Gen.list (linear 3 10) genP
+  pure $ Company employees
+
+-- gFun :: (m Company)
+-- gFun genP = undefined
+
+-- gFun2 :: Company
+-- gFun2 genP = undefined
 
 instance MonadGen m => DefaultRecipe Identity (m Company) where
   type DefaultRecipeDeps Identity (m Company) = '[m Person]
-  def = Recipe $ \deps -> pure $ do
-    employees <- Gen.list (linear 3 10) (getTyped deps)
-    pure $ Company employees
+  def = npToTRecipe $ uncurryNP (genCompany @m)
+
+-- Functions.genericTransientRecipeInstance 'gFun2
+
+-- Functions.genericTransientRecipeInstance 'gFun
+
+-- Functions.genericTransientRecipeInstance 'genCompany
 
 regularGen :: MonadGen m => m Company
 regularGen = finishPure ()
@@ -61,3 +85,6 @@ fixedEmailGen' domain = pureRecipe $ do
 
 fixedEmailGen :: forall m. MonadGen m => (m Company)
 fixedEmailGen = finishPure (I $ fixedEmailGen' @m "company.com")
+
+bothOverrides :: forall m. MonadGen m => (m Company)
+bothOverrides = finishPure (fixedEmailGen' @m "company.com", largeCompanyGen' @m)

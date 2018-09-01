@@ -38,7 +38,23 @@ genericTransientRecipe = Recipe $ \deps ->
     toA :: NP I l -> a
     toA = to . SOP . Z
 
--- Provided by lysxia
+genericTransientRecipeInstance :: Name -> DecsQ
+genericTransientRecipeInstance typ =
+  [d|
+  instance (Applicative m, Applicative n) => DefaultRecipe m (n $(conT typ)) where
+    type DefaultRecipeDeps m (n $(conT typ)) = Lift n (Head (Code $(conT typ)))
+    def = genericTransientRecipe
+  |]
+
+genericCachedRecipeInstance :: Name -> Name -> DecsQ
+genericCachedRecipeInstance effect typ =
+  [d|
+  instance DefaultRecipe $(conT effect) $(conT typ) where
+    type DefaultRecipeDeps $(conT effect) $(conT typ) = Head (Code $(conT typ))
+    def = genericCachedRecipe
+  |]
+
+-- Provided by lyxia
 
 type family Lift (m :: k -> k) (l :: [k]) = r | r -> l where
   Lift m '[] = '[]
@@ -54,11 +70,3 @@ type family UnApply (u :: k) where
 moveLift :: (l' ~ Lift m l, l ~ Unlift l') => NP I l' -> NP m l
 moveLift Nil = Nil
 moveLift (I u :* v) = u :* (moveLift v)
-
-genericTransientRecipeInstance :: Name -> DecsQ
-genericTransientRecipeInstance typ =
-  [d|
-  instance (Applicative m, Applicative n) => DefaultRecipe m (n $(conT typ)) where
-    type DefaultRecipeDeps m (n $(conT typ)) = Lift n (Head (Code $(conT typ)))
-    def = genericTransientRecipe
-  |]

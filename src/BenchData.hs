@@ -4,8 +4,6 @@ module BenchData where
 
 import V2
 import Universum
-import Data.Diverse.Many
-import qualified Data.Generics.Product as P
 import Utilities
 
 newtype M0 = M0 ()
@@ -213,47 +211,47 @@ instance DefaultRecipe Identity M40 where
   type DefaultRecipeDeps Identity M40 = '[M39]
   def = Recipe $ \deps -> pure $ M40 (getTyped deps)
 
-newtype M41 = M41 M40
+data M41 = M41 M40 M39 M38 M37
 instance DefaultRecipe Identity M41 where
-  type DefaultRecipeDeps Identity M41 = '[M40]
-  def = Recipe $ \deps -> pure $ M41 (getTyped deps)
+  type DefaultRecipeDeps Identity M41 = '[M40, M39, M38, M37]
+  def = Recipe $ \deps -> pure $ M41 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M42 = M42 M41
+data M42 = M42 M41 M40 M39 M38
 instance DefaultRecipe Identity M42 where
-  type DefaultRecipeDeps Identity M42 = '[M41]
-  def = Recipe $ \deps -> pure $ M42 (getTyped deps)
+  type DefaultRecipeDeps Identity M42 = '[M41, M40, M39, M38]
+  def = Recipe $ \deps -> pure $ M42 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M43 = M43 M42
+data M43 = M43 M42 M41 M40 M39
 instance DefaultRecipe Identity M43 where
-  type DefaultRecipeDeps Identity M43 = '[M42]
-  def = Recipe $ \deps -> pure $ M43 (getTyped deps)
+  type DefaultRecipeDeps Identity M43 = '[M42, M41, M40, M39]
+  def = Recipe $ \deps -> pure $ M43 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M44 = M44 M43
+data M44 = M44 M43 M42 M41 M40
 instance DefaultRecipe Identity M44 where
-  type DefaultRecipeDeps Identity M44 = '[M43]
-  def = Recipe $ \deps -> pure $ M44 (getTyped deps)
+  type DefaultRecipeDeps Identity M44 = '[M43, M42, M41, M40]
+  def = Recipe $ \deps -> pure $ M44 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M45 = M45 M44
+data M45 = M45 M44 M43 M42 M41
 instance DefaultRecipe Identity M45 where
-  type DefaultRecipeDeps Identity M45 = '[M44]
-  def = Recipe $ \deps -> pure $ M45 (getTyped deps)
+  type DefaultRecipeDeps Identity M45 = '[M44, M43, M42, M41]
+  def = Recipe $ \deps -> pure $ M45 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M46 = M46 M45
+data M46 = M46 M45 M44 M43 M42
 instance DefaultRecipe Identity M46 where
-  type DefaultRecipeDeps Identity M46 = '[M45]
-  def = Recipe $ \deps -> pure $ M46 (getTyped deps)
+  type DefaultRecipeDeps Identity M46 = '[M45, M44, M43, M42]
+  def = Recipe $ \deps -> pure $ M46 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M47 = M47 M46
+data M47 = M47 M46 M45 M44 M43
 instance DefaultRecipe Identity M47 where
-  type DefaultRecipeDeps Identity M47 = '[M46]
-  def = Recipe $ \deps -> pure $ M47 (getTyped deps)
+  type DefaultRecipeDeps Identity M47 = '[M46, M45, M44, M43]
+  def = Recipe $ \deps -> pure $ M47 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M48 = M48 M47
+data M48 = M48 M47 M46 M45 M44
 instance DefaultRecipe Identity M48 where
-  type DefaultRecipeDeps Identity M48 = '[M47]
-  def = Recipe $ \deps -> pure $ M48 (getTyped deps)
+  type DefaultRecipeDeps Identity M48 = '[M47, M46, M45, M44]
+  def = Recipe $ \deps -> pure $ M48 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)
 
-newtype M49 = M49 M48
+data M49 = M49 M48 M47 M46 M45
 instance DefaultRecipe Identity M49 where
-  type DefaultRecipeDeps Identity M49 = '[M48]
-  def = Recipe $ \deps -> pure $ M49 (getTyped deps)
+  type DefaultRecipeDeps Identity M49 = '[M48, M47, M46, M45]
+  def = Recipe $ \deps -> pure $ M49 (getTyped deps) (getTyped deps) (getTyped deps) (getTyped deps)

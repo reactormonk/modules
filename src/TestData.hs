@@ -6,8 +6,7 @@
 module TestData where
 
 import V2
-import Universum hiding (Nat)
-import qualified Data.Generics.Product as P
+import Universum
 
 forceResult :: Proxy a -> Proxy a -> Proxy a
 forceResult _ _ = Proxy

@@ -37,10 +37,7 @@ genEmail = Email <$> do
   host <- text (linear 3 10) ascii
   pure $ Email $ (user <> "@" <> host)
 
-genPerson = do
-  name <- genName
-  email <- genEmail
-  pure $ Person name email
+genericTransientRecipeInstance ''Person
 
 genCompany = do
   employees <- Gen.list (linear 3 10) genPerson

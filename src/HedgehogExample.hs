@@ -35,56 +35,46 @@ data Company = Company
   deriving stock (Eq, Show, Universum.Generic)
   deriving anyclass SOP.Generic
 
-instance MonadGen m => DefaultRecipe Identity (m Name) where
-  def = pureRecipe $ Name <$> text (linear 3 20) unicode
+genName :: Gen Name
+genName = Name <$> text (linear 3 20) unicode
 
-instance MonadGen m => DefaultRecipe Identity (m Email) where
-  def = pureRecipe $ do
-    user <- text (linear 3 20) ascii
-    host <- text (linear 3 10) ascii
-    pure $ Email $ (user <> "@" <> host)
+Functions.genericTransientRecipeInstance 'genName
+
+genEmail :: Gen Email
+genEmail = do
+  user <- text (linear 3 20) ascii
+  host <- text (linear 3 10) ascii
+  pure $ Email $ (user <> "@" <> host)
+
+Functions.genericTransientRecipeInstance 'genEmail
 
 Utilities.genericTransientRecipeInstance ''Person
 
-genCompany :: MonadGen m => (m Person) -> (m Company)
+genCompany :: Gen Person -> Gen Company
 genCompany genP = do
   employees <- Gen.list (linear 3 10) genP
   pure $ Company employees
 
--- gFun :: (m Company)
--- gFun genP = undefined
+Functions.genericTransientRecipeInstance 'genCompany
 
--- gFun2 :: Company
--- gFun2 genP = undefined
-
-instance MonadGen m => DefaultRecipe Identity (m Company) where
-  type DefaultRecipeDeps Identity (m Company) = '[m Person]
-  def = npToTRecipe $ uncurryNP (genCompany @m)
-
--- Functions.genericTransientRecipeInstance 'gFun2
-
--- Functions.genericTransientRecipeInstance 'gFun
-
--- Functions.genericTransientRecipeInstance 'genCompany
-
-regularGen :: MonadGen m => m Company
+regularGen :: Gen Company
 regularGen = finishPure ()
 
-largeCompanyGen' :: forall (m :: * -> *). MonadGen m => Recipe Identity (m Company) '[m Person]
+largeCompanyGen' :: Recipe Identity (Gen Company) '[Gen Person]
 largeCompanyGen' = Recipe $ \deps -> pure $ do
   employees <- Gen.list (linear 100 1000) (getTyped deps)
   pure $ Company employees
 
-largeCompanyGen :: forall m. MonadGen m => (m Company)
-largeCompanyGen = finishPure (I $ largeCompanyGen' @m) -- TODO why is this annotation required?
+largeCompanyGen :: (Gen Company)
+largeCompanyGen = finishPure (I $ largeCompanyGen') -- TODO why is this annotation required?
 
-fixedEmailGen' :: forall m. MonadGen m => Text -> Recipe Identity (m Email) '[]
+fixedEmailGen' :: Text -> Recipe Identity (Gen Email) '[]
 fixedEmailGen' domain = pureRecipe $ do
   user <- text (linear 3 20) ascii
   pure $ Email $ (user <> "@" <> domain)
 
-fixedEmailGen :: forall m. MonadGen m => (m Company)
-fixedEmailGen = finishPure (I $ fixedEmailGen' @m "company.com")
+fixedEmailGen :: Gen Company
+fixedEmailGen = finishPure (I $ fixedEmailGen' "company.com")
 
-bothOverrides :: forall m. MonadGen m => (m Company)
-bothOverrides = finishPure (fixedEmailGen' @m "company.com", largeCompanyGen' @m)
+bothOverrides :: Gen Company
+bothOverrides = finishPure (fixedEmailGen' "company.com", largeCompanyGen')

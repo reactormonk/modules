@@ -22,13 +22,13 @@ description:         Please see the README on Github at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - universum
-- data-diverse
 - containers
 - unordered-containers
 - hedgehog
 - generic-lens
 - generics-sop
 - template-haskell
+- ghc-prim
 
 ghc-options:
   -Wall
@@ -50,6 +50,7 @@ default-extensions:
   - DeriveLift
   - DeriveTraversable
   - DerivingStrategies
+  - DuplicateRecordFields
   - EmptyCase
   - ExistentialQuantification
   - FlexibleContexts
@@ -64,6 +65,7 @@ default-extensions:
   - MultiWayIf
   - NamedFieldPuns
   - OverloadedStrings
+  - OverloadedLabels
   - PatternSynonyms
   - RankNTypes
   - ScopedTypeVariables
@@ -76,25 +78,45 @@ default-extensions:
 
 library:
   source-dirs: src
+  exported-modules:
+    - V2
+    - Functions
+    - Utilities
 
-executables:
-  modules-exe:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - modules
+  # modules-dd:
+  #   source-dirs: dd
+  #   dependencies:
+  #   - data-diverse
 
 tests:
   modules-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main:                Tests.hs
+    source-dirs:
+      - test
+      - test-data
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+
+  modules-dd-test:
+    main:                Tests.hs
+    source-dirs:
+      - test-dd
+      - test-data
     dependencies:
-    - modules
+    - data-diverse
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+
+  modules-bench:
+    main:                Bench.hs
+    source-dirs:
+      - bench
+      - src
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N

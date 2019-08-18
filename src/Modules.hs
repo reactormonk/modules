@@ -29,6 +29,6 @@ data NetworkModule = NetworkModule
   { sendSeedOverWire :: IO ()
   }
 
-data HttpModule = HttpModule
-  { get :: Request -> IO Response
-  }
+-- data HttpModule = HttpModule
+--   { get :: Request -> IO Response
+--   }
